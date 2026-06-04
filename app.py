@@ -759,7 +759,7 @@ with st.sidebar:
     <div style="padding:16px 16px 10px;border-bottom:1px solid var(--border)">
       <div style="font-size:15px;font-weight:700;color:var(--text);letter-spacing:-.3px">Corpus Explorer</div>
       <div style="font-size:10.5px;color:var(--muted2);font-family:'JetBrains Mono',monospace;margin-top:2px">
-        deeptech · value capture · thèse
+        Outil d'exploration du corpus codé pour la recherche sur le déplacement de la valeur
       </div>
     </div>
     """, unsafe_allow_html=True)
@@ -944,7 +944,7 @@ st.markdown(f"""
   <div style="display:flex;align-items:baseline;gap:10px">
     <span class="logo">Corpus Explorer</span>
     <span class="logo-dot">·</span>
-    <span class="logo-sub">deeptech · value capture</span>
+    <span class="logo-sub">Outil d'exploration du corpus codé pour la recherche sur le déplacement de la valeur</span>
   </div>
   <div class="kpis">
     <div class="kpi"><div class="kpi-n">{len(ALL_INT)}</div><div class="kpi-l">entretiens</div></div>
