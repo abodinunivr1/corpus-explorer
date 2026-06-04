@@ -720,7 +720,7 @@ _D = {
     "cross_code": None,
     "c_ints":[], "c_grps":[], "c_codes":[], "c_conf":["high","medium","low"],
     "c_text":"", "c_page":1, "c_sort":"Défaut",
-    "p_ints":[], "p_grps":[], "p_codes":[], "p_conf":["high","medium","low"],
+    "p_ints":[], "p_grps":[], "p_codes":[], "p_code_mode":"OU", "p_conf":["high","medium","low"],
     "p_nc":(1, int(df_ip["n_codes"].max())),
     "p_ng":(1, int(df_ip["n_groups"].max())),
     "p_text":"", "p_page":1, "p_sort":"Défaut",
@@ -742,7 +742,7 @@ def reset_c():
     st.session_state.cross_code = None
 
 def reset_p():
-    for k in ["p_ints","p_grps","p_codes","p_conf","p_nc","p_ng","p_text","p_page","p_sort"]:
+    for k in ["p_ints","p_grps","p_codes","p_code_mode","p_conf","p_nc","p_ng","p_text","p_page","p_sort"]:
         st.session_state[k] = _D[k]
     st.session_state.p_conf = ["high","medium","low"]
     st.session_state.cross_iid = None
@@ -847,6 +847,15 @@ with st.sidebar:
             placeholder="Tous", key="w_p_codes",
         )
         st.session_state.p_codes = sel_p_codes
+
+        if len(sel_p_codes) > 1:
+            p_code_mode = st.radio(
+                "Mode codes", ["OU", "ET"],
+                index=["OU", "ET"].index(st.session_state.p_code_mode),
+                horizontal=True, key="w_p_code_mode",
+                help="OU : passages contenant au moins un des codes · ET : passages contenant tous les codes",
+            )
+            st.session_state.p_code_mode = p_code_mode
 
         st.markdown("**Confiance min.**")
         pc1,pc2,pc3 = st.columns(3)
@@ -1151,12 +1160,21 @@ elif view == "passages":
     if st.session_state.p_grps:
         fp = fp[fp["groups"].apply(lambda g: any(x in str(g) for x in st.session_state.p_grps))]
     if st.session_state.p_codes:
-        target_cids = set()
-        for cn in st.session_state.p_codes:
-            target_cids |= CN_TO_CIDS.get(cn, set())
-        fp = fp[fp["codes"].apply(
-            lambda s: bool({c.strip() for c in str(s).split(",")} & target_cids)
-        )]
+        if st.session_state.p_code_mode == "ET":
+            def _has_all_codes(codes_str):
+                passage_cids = {c.strip() for c in str(codes_str).split(",")}
+                return all(
+                    bool(passage_cids & CN_TO_CIDS.get(cn, set()))
+                    for cn in st.session_state.p_codes
+                )
+            fp = fp[fp["codes"].apply(_has_all_codes)]
+        else:
+            target_cids = set()
+            for cn in st.session_state.p_codes:
+                target_cids |= CN_TO_CIDS.get(cn, set())
+            fp = fp[fp["codes"].apply(
+                lambda s: bool({c.strip() for c in str(s).split(",")} & target_cids)
+            )]
     if st.session_state.p_conf:  fp = fp[fp["confidence_min"].isin(st.session_state.p_conf)]
     fp = fp[(fp["n_codes"]>=st.session_state.p_nc[0]) & (fp["n_codes"]<=st.session_state.p_nc[1])]
     fp = fp[(fp["n_groups"]>=st.session_state.p_ng[0]) & (fp["n_groups"]<=st.session_state.p_ng[1])]
