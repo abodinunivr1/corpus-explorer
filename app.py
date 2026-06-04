@@ -528,23 +528,28 @@ def load_data(mc_bytes=None, ip_bytes=None, cb_bytes=None):
     return mc, ip, cb
 
 if not _local_files_present():
-    st.markdown("### Chargement des données")
-    st.caption("Les fichiers de données ne sont pas embarqués dans l'app. Uploadez-les pour continuer.")
-    c1, c2, c3 = st.columns(3)
-    uf_mc = c1.file_uploader("master_corpus.xlsx", type="xlsx", key="uf_mc")
-    uf_ip = c2.file_uploader("index_passages.xlsx", type="xlsx", key="uf_ip")
-    uf_cb = c3.file_uploader("CODE_BOOK_v10.xlsx",  type="xlsx", key="uf_cb")
-    if not (uf_mc and uf_ip and uf_cb):
-        st.stop()
-    try:
-        df_mc, df_ip, df_cb = load_data(
-            mc_bytes=uf_mc.getvalue(),
-            ip_bytes=uf_ip.getvalue(),
-            cb_bytes=uf_cb.getvalue(),
-        )
-    except Exception as e:
-        st.error(f"Erreur lors du chargement : {e}")
-        st.stop()
+    if "data_loaded" not in st.session_state:
+        st.markdown("### Chargement des données")
+        st.caption("Les fichiers de données ne sont pas embarqués dans l'app. Uploadez-les pour continuer.")
+        c1, c2, c3 = st.columns(3)
+        uf_mc = c1.file_uploader("master_corpus.xlsx", type="xlsx", key="uf_mc")
+        uf_ip = c2.file_uploader("index_passages.xlsx", type="xlsx", key="uf_ip")
+        uf_cb = c3.file_uploader("CODE_BOOK_v10.xlsx",  type="xlsx", key="uf_cb")
+        if not (uf_mc and uf_ip and uf_cb):
+            st.stop()
+        try:
+            df_mc, df_ip, df_cb = load_data(
+                mc_bytes=uf_mc.getvalue(),
+                ip_bytes=uf_ip.getvalue(),
+                cb_bytes=uf_cb.getvalue(),
+            )
+            st.session_state["data_loaded"] = (df_mc, df_ip, df_cb)
+            st.rerun()
+        except Exception as e:
+            st.error(f"Erreur lors du chargement : {e}")
+            st.stop()
+    else:
+        df_mc, df_ip, df_cb = st.session_state["data_loaded"]
 else:
     try:
         df_mc, df_ip, df_cb = load_data()
