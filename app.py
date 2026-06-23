@@ -1123,7 +1123,7 @@ if view == "codings":
         st.info("Aucun résultat pour ces filtres.")
     else:
         slic = paginate(fc, "c_page", 40)
-        for _, row in slic.iterrows():
+        for _i, (_, row) in enumerate(slic.iterrows()):
             iid       = row["interview_id"]
             exc       = str(row["excerpt"])
             rat       = str(row["rationale"])
@@ -1166,7 +1166,7 @@ if view == "codings":
 
             btn_col, _ = st.columns([2, 6])
             with btn_col:
-                if st.button(f"→ {n_p} passages", key=f"xp_{row['coding_id']}",
+                if st.button(f"→ {n_p} passages", key=f"xp_{_i}",
                              help=f"Voir les passages de {iid}"):
                     st.session_state.cross_iid  = iid
                     st.session_state.p_ints     = [iid]
