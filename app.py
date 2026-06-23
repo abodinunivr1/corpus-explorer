@@ -718,14 +718,14 @@ _D = {
     "view": "codings",
     "cross_iid": None,
     "cross_code": None,
-    "c_ints":[], "c_grps":[], "c_codes":[], "c_conf":["high","medium","low"],
+    "c_ints":[], "c_grps":[], "c_codes":[], "c_code_mode":"OU", "c_conf":["high","medium","low"],
     "c_text":"", "c_page":1, "c_sort":"Défaut",
     "p_ints":[], "p_grps":[], "p_codes":[], "p_code_mode":"OU", "p_conf":["high","medium","low"],
     "p_nc":(1, int(df_ip["n_codes"].max())),
     "p_ng":(1, int(df_ip["n_groups"].max())),
     "p_text":"", "p_page":1, "p_sort":"Défaut",
     "a_ints":[], "a_grps":[], "a_topn":20,
-    "cb_search":"", "cb_grps":[], "cb_sort":"Groupe",
+    "cb_search":"", "cb_grps":[], "cb_grp_mode":"OU", "cb_sort":"Groupe",
     "i_int": ALL_INT[0] if ALL_INT else None,
     "k_topn": 50, "k_minw": 3, "k_dim1": 1, "k_dim2": 2,
     "k_show_codes": False,
@@ -735,7 +735,7 @@ for k, v in _D.items():
         st.session_state[k] = v
 
 def reset_c():
-    for k in ["c_ints","c_grps","c_codes","c_conf","c_text","c_page","c_sort"]:
+    for k in ["c_ints","c_grps","c_codes","c_code_mode","c_conf","c_text","c_page","c_sort"]:
         st.session_state[k] = _D[k]
     st.session_state.c_conf = ["high","medium","low"]
     st.session_state.cross_iid = None
@@ -795,6 +795,15 @@ with st.sidebar:
             placeholder="Tous", key="w_c_codes",
         )
         st.session_state.c_codes = sel_c_codes
+
+        if len(sel_c_codes) > 1:
+            c_code_mode = st.radio(
+                "Mode codes", ["OU", "ET"],
+                index=["OU", "ET"].index(st.session_state.c_code_mode),
+                horizontal=True, key="w_c_code_mode",
+                help="OU : codings de l'un ou l'autre des codes · ET : uniquement les entretiens où tous les codes apparaissent",
+            )
+            st.session_state.c_code_mode = c_code_mode
 
         st.markdown("**Confiance**")
         cc1,cc2,cc3 = st.columns(3)
@@ -915,6 +924,15 @@ with st.sidebar:
         cb_grps = st.multiselect("Groupe", ALL_GRP, default=st.session_state.cb_grps,
                                  format_func=short_grp, placeholder="Tous", key="w_cb_grps")
         st.session_state.cb_grps = cb_grps
+
+        if len(cb_grps) > 1:
+            cb_grp_mode = st.radio(
+                "Mode groupes", ["OU", "ET"],
+                index=["OU", "ET"].index(st.session_state.cb_grp_mode),
+                horizontal=True, key="w_cb_grp_mode",
+                help="OU : codes de l'un ou l'autre des groupes · ET : codes qui co-apparaissent avec tous les groupes sélectionnés",
+            )
+            st.session_state.cb_grp_mode = cb_grp_mode
 
         cb_sort = st.selectbox("Tri", ["Groupe","Fréquence ↓","A → Z"],
                                index=["Groupe","Fréquence ↓","A → Z"].index(st.session_state.cb_sort),
@@ -1043,7 +1061,18 @@ if view == "codings":
     fc = df_mc.copy()
     if st.session_state.c_ints:  fc = fc[fc["interview_id"].isin(st.session_state.c_ints)]
     if st.session_state.c_grps:  fc = fc[fc["group"].isin(st.session_state.c_grps)]
-    if st.session_state.c_codes: fc = fc[fc["code_name"].isin(st.session_state.c_codes)]
+    if st.session_state.c_codes:
+        if st.session_state.c_code_mode == "ET" and len(st.session_state.c_codes) > 1:
+            valid_iids = set(
+                iid for iid in fc["interview_id"].unique()
+                if all(
+                    cn in fc[fc["interview_id"] == iid]["code_name"].values
+                    for cn in st.session_state.c_codes
+                )
+            )
+            fc = fc[fc["interview_id"].isin(valid_iids) & fc["code_name"].isin(st.session_state.c_codes)]
+        else:
+            fc = fc[fc["code_name"].isin(st.session_state.c_codes)]
     if st.session_state.c_conf:  fc = fc[fc["confidence"].isin(st.session_state.c_conf)]
     if st.session_state.c_text:  fc = fc[fc["excerpt"].str.contains(st.session_state.c_text, case=False, na=False)]
 
@@ -1449,6 +1478,19 @@ elif view == "codebook":
     cb_df = df_cb.copy()
     if st.session_state.cb_grps:
         cb_df = cb_df[cb_df["Group"].isin(st.session_state.cb_grps)]
+        if st.session_state.cb_grp_mode == "ET" and len(st.session_state.cb_grps) > 1:
+            other_grps = st.session_state.cb_grps
+            def _code_cooccurs_all_grps(code_name):
+                code_cids = CN_TO_CIDS.get(code_name, set())
+                for _, prow in df_ip.iterrows():
+                    passage_cids = {c.strip() for c in str(prow["codes"]).split(",")}
+                    if not (passage_cids & code_cids):
+                        continue
+                    passage_grps = {g.strip() for g in str(prow["groups"]).split(",")}
+                    if all(g in passage_grps for g in other_grps):
+                        return True
+                return False
+            cb_df = cb_df[cb_df["Code_Name"].apply(_code_cooccurs_all_grps)]
     if st.session_state.cb_search:
         s = st.session_state.cb_search
         cb_df = cb_df[
